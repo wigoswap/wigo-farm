@@ -9,7 +9,7 @@ import "./OpenZeppelin/access/Pausable.sol";
 
 import "./interfaces/IMasterFarmer.sol";
 
-contract WigoVault is Ownable, Pausable {
+contract WigoVault2 is Ownable, Pausable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -20,8 +20,8 @@ contract WigoVault is Ownable, Pausable {
         uint256 lastUserActionTime; // keeps track of the last user action time
     }
 
-    IERC20 public immutable token; // Wigo token
-    IERC20 public immutable receiptToken; // Bank token
+    IERC20 public immutable token; // WIGO token
+    IERC20 public immutable receiptToken; // xWIGO token
 
     IMasterFarmer public immutable masterfarmer;
 
@@ -30,16 +30,17 @@ contract WigoVault is Ownable, Pausable {
     uint256 public totalShares;
     uint256 public lastHarvestedTime;
     address public admin;
+    address public pot;
 
-    uint256 public constant MAX_PERFORMANCE_FEE = 500; // 5%
-    uint256 public constant MAX_CALL_FEE = 100; // 1%
-    uint256 public constant MAX_WITHDRAW_FEE = 100; // 1%
-    uint256 public constant MAX_WITHDRAW_FEE_PERIOD = 72 hours; // 3 days
+    uint256 public constant MAX_PERFORMANCE_FEE = 200; // 2%
+    uint256 public constant MAX_CALL_FEE = 50; // 0.5%
+    uint256 public constant MAX_WITHDRAW_FEE = 1000; // 10%
+    uint256 public constant MAX_WITHDRAW_FEE_PERIOD = 60 days; // 60 days
 
-    uint256 public performanceFee = 200; // 2%
+    uint256 public performanceFee = 100; // 1%
     uint256 public callFee = 25; // 0.25%
-    uint256 public withdrawFee = 50; // 0.5%
-    uint256 public withdrawFeePeriod = 72 hours; // 3 days
+    uint256 public withdrawFee = 1000; // 10%
+    uint256 public withdrawFeePeriod = 30 days; // 30 days
 
     event Deposit(
         address indexed sender,
@@ -54,6 +55,7 @@ contract WigoVault is Ownable, Pausable {
         uint256 callFee
     );
     event SetAdmin(address indexed sender, address indexed newAdmin);
+    event SetPot(address indexed sender, address indexed newPot);
     event SetPerformanceFee(
         address indexed sender,
         uint256 indexed newPerformanceFee
@@ -73,21 +75,24 @@ contract WigoVault is Ownable, Pausable {
 
     /**
      * @notice Constructor
-     * @param _token: Wigo token contract
-     * @param _receiptToken: Bank token contract
+     * @param _token: WIGO token contract
+     * @param _receiptToken: xWIGO token contract
      * @param _masterfarmer: MasterFarmer contract
      * @param _admin: address of the admin
+     * @param _pot: address of the pot
      */
     constructor(
         IERC20 _token,
         IERC20 _receiptToken,
         IMasterFarmer _masterfarmer,
-        address _admin
+        address _admin,
+        address _pot
     ) public {
         token = _token;
         receiptToken = _receiptToken;
         masterfarmer = _masterfarmer;
         admin = _admin;
+        pot = _pot;
 
         // Infinite approve
         IERC20(_token).safeApprove(address(_masterfarmer), uint256(-1));
@@ -193,7 +198,7 @@ contract WigoVault is Ownable, Pausable {
         } else {
             user.wigoAtLastUserAction = 0;
         }
-        
+
         user.lastUserActionTime = block.timestamp;
 
         emit Withdraw(msg.sender, currentAmount, _shares);
@@ -208,7 +213,7 @@ contract WigoVault is Ownable, Pausable {
 
         uint256 bal = available();
         uint256 currentPerformanceFee = bal.mul(performanceFee).div(10000);
-        IMasterFarmer(masterfarmer).wigoBurn(currentPerformanceFee);
+        token.safeTransfer(pot, currentPerformanceFee);
 
         uint256 currentCallFee = bal.mul(callFee).div(10000);
         token.safeTransfer(msg.sender, currentCallFee);
@@ -228,6 +233,16 @@ contract WigoVault is Ownable, Pausable {
         require(_admin != address(0), "Cannot be zero address");
         admin = _admin;
         emit SetAdmin(msg.sender, _admin);
+    }
+
+    /**
+     * @notice Sets pot address
+     * @dev Only callable by the contract owner.
+     */
+    function setPot(address _pot) external onlyOwner {
+        require(_pot != address(0), "Cannot be zero address");
+        pot = _pot;
+        emit SetPot(msg.sender, _pot);
     }
 
     /**
