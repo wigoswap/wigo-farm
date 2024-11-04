@@ -55,8 +55,10 @@ contract MasterFarmer is Ownable {
     address public devAddr;
     // WIGO tokens created per second.
     uint256 public wigoPerSecond;
+    // TODO: Review this step to ensure smooth migration to Sonic
     // Reward muliplier for early wigo makers.
     uint256[] public REWARD_MULTIPLIER = [9, 8, 7, 6, 5, 4, 3, 2, 1];
+    // TODO: Review this step to ensure smooth migration to Sonic
     // When multiplier changes.
     uint256[] public CHANGE_MULTIPLIER_AT_TIME;
     // When multiplier will change to 1.
@@ -311,6 +313,7 @@ contract MasterFarmer is Ownable {
             .mul(pool.allocPoint)
             .div(totalAllocPoint);
         uint256 wigoReward = wigoCanMint(rewardAmount);
+        // TODO: Review this step to ensure smooth migration to Sonic
         // Minting for devs and treasury will stop when total minted exceeds max supply.
         if (wigo.totalMinted() < wigo.maxSupply()) {
             wigo.mint(devAddr, wigoReward.mul(PERCENT_FOR_DEV).div(1000));
